@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Bank App v3</title>
+    <title>Pro Bank App v4</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
@@ -27,6 +27,7 @@
         .sender-info { display: flex; align-items: center; gap: 4px; font-size: 0.75em; font-weight: bold; margin-bottom: 3px; color: #666; }
         .me { background: #667eea; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .other { background: #e9e9eb; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .system-msg { align-self: center; background: #fff3cd; color: #856404; font-size: 0.75em; padding: 4px 10px; border-radius: 10px; border: 1px solid #ffeeba; font-style: italic; }
         
         /* Tabs */
         .tab-buttons { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
@@ -70,6 +71,8 @@
             <span class="pfp-opt" onclick="setPfp('🔥')">🔥</span>
             <span class="pfp-opt" onclick="setPfp('👑')">👑</span>
             <span class="pfp-opt" onclick="setPfp('👻')">👻</span>
+            <span class="pfp-opt" onclick="setPfp('🐧')">🐧</span>
+            <span class="pfp-opt" onclick="setPfp('👽')">👽</span>
         </div>
         
         <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50 Reward</button>
@@ -136,7 +139,6 @@ function start(u) {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('uid').innerText = u;
     
-    // User Profile Listener
     db.ref('users/' + u).on('value', s => {
         const data = s.val() || {};
         document.getElementById('bal').innerText = data.balance || 0;
@@ -144,13 +146,10 @@ function start(u) {
         document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // Integrated Chat Listener
     db.ref('messages').on('value', s => {
         const box = document.getElementById('chatBox');
         box.innerHTML = "";
         const all = s.val() || {};
-        
-        // Merge Global + Your Private Messages
         const combined = { ...(all['global'] || {}), ...(all[currentUser] || {}) };
         
         Object.keys(combined).sort().forEach(key => {
@@ -158,15 +157,19 @@ function start(u) {
             if (!m.text) return;
 
             const div = document.createElement('div');
-            div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
             
-            // Safety: Fallback to ghost if PFP is missing
-            const senderPfp = m.pfp || "👤";
-            
-            div.innerHTML = `
-                <div class="sender-info"><span>${senderPfp}</span> ${m.from}</div>
-                <div>${m.text}</div>
-            `;
+            // SYSTEM MESSAGE CHECK
+            if (m.type === "system") {
+                div.className = "system-msg";
+                div.innerText = m.text;
+            } else {
+                div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
+                const senderPfp = m.pfp || "👤";
+                div.innerHTML = `
+                    <div class="sender-info"><span>${senderPfp}</span> ${m.from}</div>
+                    <div>${m.text}</div>
+                `;
+            }
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
@@ -176,9 +179,16 @@ function start(u) {
 }
 
 function setPfp(emoji) {
-    if(!currentUser) return;
+    if(!currentUser || emoji === userPfp) return;
     userPfp = emoji;
     db.ref('users/' + currentUser + '/pfp').set(emoji);
+    
+    // SEND GLOBAL NOTIFICATION
+    db.ref('messages/global').push({
+        type: "system",
+        text: `${emoji} ${currentUser} updated their look!`,
+        time: Date.now()
+    });
 }
 
 function sendMsg() {
@@ -193,10 +203,7 @@ function sendMsg() {
         time: Date.now() 
     };
 
-    // Send to target bucket
     db.ref('messages/' + to).push(msgObj);
-    
-    // If private, save copy to self bucket
     if (to !== "global") {
         db.ref('messages/' + currentUser).push({
             from: currentUser, 
@@ -205,7 +212,6 @@ function sendMsg() {
             time: Date.now()
         });
     }
-    
     document.getElementById('chatMsg').value = "";
 }
 
