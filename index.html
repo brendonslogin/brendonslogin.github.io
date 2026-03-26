@@ -3,29 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Bank App</title>
+    <title>Pro Bank App v3</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
-        input, button { margin:8px 0; padding:12px; width:95%; border-radius:12px; border:1px solid #ddd; box-sizing: border-box; outline: none; }
+        input, button { margin:8px 0; padding:12px; width:95%; border-radius:12px; border:1px solid #ddd; box-sizing: border-box; outline: none; font-size: 1rem; }
         button { background:#667eea; color:white; font-weight:bold; cursor:pointer; border:none; transition: 0.2s; }
         button:hover { background:#5a67d8; transform: translateY(-1px); }
+        button:disabled { background:#ccc; cursor:not-allowed; }
         .hidden { display:none; }
         
-        /* PFP Styles */
-        .pfp-display { font-size: 50px; margin: 10px 0; background: #f0f4ff; width: 80px; height: 80px; line-height: 80px; border-radius: 50%; display: inline-block; border: 3px solid #667eea; }
-        .pfp-option { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; transition: 0.2s; border: 1px solid transparent; display: inline-block; }
-        .pfp-option:hover { background: #eee; border-color: #667eea; }
+        /* PFP & Header */
+        .header-ui { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .user-pill { background: #f0f4ff; padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #444; border: 1px solid #dce4ff; }
+        .pfp-picker { background: #f9f9fb; padding: 10px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #eee; }
+        .pfp-opt { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; display: inline-block; transition: 0.2s; }
+        .pfp-opt:hover { background: #e2e8f0; transform: scale(1.2); }
 
-        /* Chat Styles */
+        /* Chat UI */
         .chat-wrapper { border: 1px solid #eee; border-radius: 16px; overflow: hidden; background: #fff; margin-top: 15px; }
-        .chat-container { height: 280px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; }
-        .msg { padding: 8px 12px; margin: 4px 0; border-radius: 12px; max-width: 85%; font-size: 0.9em; position: relative; }
-        .sender-info { font-size: 0.7em; font-weight: bold; margin-bottom: 2px; color: #555; display: flex; align-items: center; gap: 5px; }
+        .chat-container { height: 300px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; }
+        .msg { padding: 8px 12px; margin: 5px 0; border-radius: 12px; max-width: 80%; font-size: 0.9em; position: relative; line-height: 1.4; }
+        .sender-info { display: flex; align-items: center; gap: 4px; font-size: 0.75em; font-weight: bold; margin-bottom: 3px; color: #666; }
         .me { background: #667eea; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .other { background: #e9e9eb; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
         
-        /* Layout */
+        /* Tabs */
         .tab-buttons { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
         .tab-buttons button { width: auto; padding: 8px 20px; background: #eee; color: #555; }
         .tab-buttons button.active { background: #667eea; color: white; }
@@ -38,17 +41,20 @@
     <input id="user" placeholder="Username">
     <input id="pass" type="password" placeholder="Password">
     <button onclick="go()">Enter Bank</button>
-    <button onclick="toggle()" style="background:none; color:#667eea;">Create Account</button>
-    <p id="msg" style="color:red; font-weight:bold;"></p>
+    <button onclick="toggle()" style="background:none; color:#667eea; font-size:0.9em;">Create Account</button>
+    <p id="msg" style="color:red; font-size:0.8em; font-weight:bold;"></p>
 </div>
 
 <div class="box hidden" id="app">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div id="myPfp" class="pfp-display" style="width:40px; height:40px; line-height:40px; font-size:20px;">👤</div>
-        <button onclick="logout()" style="width:auto; padding:5px 10px; background:#ff4d4d; font-size:0.7em;">Logout</button>
+    <div class="header-ui">
+        <div class="user-pill">
+            <span id="myPfpDisplay">👤</span>
+            <b id="uid"></b>
+        </div>
+        <button onclick="logout()" style="width:auto; padding:5px 10px; background:#ff4d4d; font-size:0.7em; margin:0;">Logout</button>
     </div>
 
-    <h1 style="margin:5px 0;">$<span id="bal">0</span></h1>
+    <h1 style="margin:5px 0; color:#333;">$<span id="bal">0</span></h1>
     
     <div class="tab-buttons">
         <button id="btnDash" class="active" onclick="showTab('dashboard')">Home</button>
@@ -56,32 +62,30 @@
     </div>
 
     <div id="dashboardTab">
-        <div style="background:#f9f9fb; padding:10px; border-radius:15px; margin-bottom:15px;">
-            <p style="margin:0; font-size:0.8em; color:#666;">Choose your Permanent PFP:</p>
-            <div id="pfpPicker">
-                <span class="pfp-option" onclick="setPfp('💰')">💰</span>
-                <span class="pfp-option" onclick="setPfp('🦁')">🦁</span>
-                <span class="pfp-option" onclick="setPfp('💎')">💎</span>
-                <span class="pfp-option" onclick="setPfp('🔥')">🔥</span>
-                <span class="pfp-option" onclick="setPfp('👑')">👑</span>
-                <span class="pfp-option" onclick="setPfp('👻')">👻</span>
-            </div>
+        <div class="pfp-picker">
+            <p style="margin:0 0 5px; font-size:0.75em; color:#888;">Select Permanent PFP</p>
+            <span class="pfp-opt" onclick="setPfp('💰')">💰</span>
+            <span class="pfp-opt" onclick="setPfp('🦁')">🦁</span>
+            <span class="pfp-opt" onclick="setPfp('💎')">💎</span>
+            <span class="pfp-opt" onclick="setPfp('🔥')">🔥</span>
+            <span class="pfp-opt" onclick="setPfp('👑')">👑</span>
+            <span class="pfp-opt" onclick="setPfp('👻')">👻</span>
         </div>
         
-        <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50</button>
+        <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50 Reward</button>
         <button onclick="claimTask()" style="background:#38a169;">Claim Reward</button>
-        <div id="paycheckTimer" style="font-weight:bold; margin-top:10px; color:#764ba2;">...</div>
+        <div id="paycheckTimer" style="font-weight:bold; margin-top:15px; color:#764ba2;">...</div>
         <button id="claimPaycheckBtn" disabled>Claim $10 Paycheck</button>
     </div>
 
     <div id="chatTab" class="hidden">
         <div class="chat-wrapper">
             <div id="chatBox" class="chat-container"></div>
-            <div style="padding:10px; border-top:1px solid #eee;">
-                <input id="chatUser" placeholder="Send to... (Blank for Global)" style="height:30px; font-size:0.8em;">
+            <div style="padding:12px; border-top:1px solid #eee; background:#fff;">
+                <input id="chatUser" placeholder="To... (Blank for Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
                 <div style="display:flex; gap:5px;">
-                    <input id="chatMsg" placeholder="Message..." style="flex:1; margin:0;">
-                    <button onclick="sendMsg()" style="width:60px; margin:0;">Send</button>
+                    <input id="chatMsg" placeholder="Message..." style="flex:1; margin:0; height:40px;">
+                    <button onclick="sendMsg()" style="width:65px; margin:0; height:40px;">Send</button>
                 </div>
             </div>
         </div>
@@ -112,13 +116,15 @@ function showTab(name) {
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
+    if(!u || !p) return document.getElementById('msg').innerText = "Fill fields!";
+
     db.ref('users/' + u).get().then(s => {
         if (loginMode) {
             if (s.exists() && String(s.val().password) === String(p)) {
                 localStorage.setItem('u', u); start(u);
-            } else { alert("Wrong Login!"); }
+            } else { document.getElementById('msg').innerText = "Wrong Login!"; }
         } else {
-            if (s.exists()) return alert("Taken!");
+            if (s.exists()) return document.getElementById('msg').innerText = "Taken!";
             db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { location.reload(); });
         }
     });
@@ -128,27 +134,39 @@ function start(u) {
     currentUser = u;
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    document.getElementById('uid').innerText = u;
     
-    // Load Permanent PFP & Balance
+    // User Profile Listener
     db.ref('users/' + u).on('value', s => {
-        const data = s.val();
+        const data = s.val() || {};
         document.getElementById('bal').innerText = data.balance || 0;
         userPfp = data.pfp || "👤";
-        document.getElementById('myPfp').innerText = userPfp;
+        document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // Chat with PFPs
+    // Integrated Chat Listener
     db.ref('messages').on('value', s => {
-        const box = document.getElementById('chatBox'); box.innerHTML = "";
+        const box = document.getElementById('chatBox');
+        box.innerHTML = "";
         const all = s.val() || {};
+        
+        // Merge Global + Your Private Messages
         const combined = { ...(all['global'] || {}), ...(all[currentUser] || {}) };
         
         Object.keys(combined).sort().forEach(key => {
             const m = combined[key];
+            if (!m.text) return;
+
             const div = document.createElement('div');
             div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
-            // Use the PFP sent with the message
-            div.innerHTML = `<span class="sender-info"><span>${m.pfp || '👤'}</span> ${m.from}</span>${m.text}`;
+            
+            // Safety: Fallback to ghost if PFP is missing
+            const senderPfp = m.pfp || "👤";
+            
+            div.innerHTML = `
+                <div class="sender-info"><span>${senderPfp}</span> ${m.from}</div>
+                <div>${m.text}</div>
+            `;
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
@@ -158,9 +176,9 @@ function start(u) {
 }
 
 function setPfp(emoji) {
+    if(!currentUser) return;
     userPfp = emoji;
     db.ref('users/' + currentUser + '/pfp').set(emoji);
-    alert("Profile Picture Updated!");
 }
 
 function sendMsg() {
@@ -168,22 +186,43 @@ function sendMsg() {
     let text = document.getElementById('chatMsg').value.trim();
     if (!text) return;
 
-    const msgObj = { from: currentUser, pfp: userPfp, text: text, time: Date.now() };
+    const msgObj = { 
+        from: currentUser, 
+        pfp: userPfp, 
+        text: text, 
+        time: Date.now() 
+    };
+
+    // Send to target bucket
     db.ref('messages/' + to).push(msgObj);
-    if (to !== "global") db.ref('messages/' + currentUser).push(msgObj);
+    
+    // If private, save copy to self bucket
+    if (to !== "global") {
+        db.ref('messages/' + currentUser).push({
+            from: currentUser, 
+            pfp: userPfp, 
+            text: `(To ${to}): ${text}`, 
+            time: Date.now()
+        });
+    }
+    
     document.getElementById('chatMsg').value = "";
 }
 
-// Timer & Tasks (Keep existing logic)
 function startPaycheckTimer() {
     const btn = document.getElementById('claimPaycheckBtn');
     const timerEl = document.getElementById('paycheckTimer');
     setInterval(async () => {
+        if(!currentUser) return;
         let snap = await db.ref('paychecks/' + currentUser).get();
         let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
-        if (diff <= 0) { timerEl.innerText = "READY!"; btn.disabled = false; }
-        else { 
+        if (diff <= 0) { 
+            timerEl.innerText = "PAYCHECK READY!"; 
+            timerEl.style.color = "green"; 
+            btn.disabled = false; 
+        } else { 
             btn.disabled = true;
+            timerEl.style.color = "#764ba2";
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
             timerEl.innerText = `${h}h ${m}m ${s}s`;
         }
@@ -196,15 +235,18 @@ function startPaycheckTimer() {
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Done!");
+        if (s.exists()) return alert("Already claimed!");
         db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
         db.ref('tasks/' + currentUser).set(true);
+        alert("Got $50!");
     });
 }
+
 function openTask() { window.open("https://www.youtube.com/@mythvfact", "_blank"); }
 function logout() { localStorage.removeItem('u'); location.reload(); }
 
-let savedU = localStorage.getItem('u'); if (savedU) start(savedU);
+let savedU = localStorage.getItem('u'); 
+if (savedU) start(savedU);
 </script>
 </body>
 </html>
