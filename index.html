@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Bank App v5</title>
+    <title>Pro Bank App v6</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
         input, button { margin:8px 0; padding:12px; width:95%; border-radius:12px; border:1px solid #ddd; box-sizing: border-box; outline: none; font-size: 1rem; }
         button { background:#667eea; color:white; font-weight:bold; cursor:pointer; border:none; transition: 0.2s; }
@@ -13,19 +13,21 @@
         button:disabled { background:#ccc; cursor:not-allowed; }
         .hidden { display:none; }
         
+        /* Header & PFP */
         .header-ui { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .user-pill { background: #f0f4ff; padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #444; border: 1px solid #dce4ff; }
         .pfp-picker { background: #f9f9fb; padding: 10px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #eee; }
         .pfp-opt { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; display: inline-block; transition: 0.2s; }
         .pfp-opt:hover { background: #e2e8f0; transform: scale(1.2); }
 
+        /* Bulletproof Chat UI */
         .chat-wrapper { border: 1px solid #eee; border-radius: 16px; overflow: hidden; background: #fff; margin-top: 15px; }
-        .chat-container { height: 300px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; }
-        .msg { padding: 8px 12px; margin: 5px 0; border-radius: 12px; max-width: 80%; font-size: 0.9em; position: relative; line-height: 1.4; }
-        .sender-info { display: flex; align-items: center; gap: 4px; font-size: 0.75em; font-weight: bold; margin-bottom: 3px; color: #666; }
+        .chat-container { height: 320px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; scroll-behavior: smooth; }
+        .msg { padding: 8px 12px; margin: 5px 0; border-radius: 12px; max-width: 80%; font-size: 0.9em; position: relative; line-height: 1.4; word-wrap: break-word; }
+        .sender-info { display: flex; align-items: center; gap: 5px; font-size: 0.75em; font-weight: bold; margin-bottom: 3px; color: #666; }
         .me { background: #667eea; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .other { background: #e9e9eb; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .system-msg { align-self: center; background: #fff3cd; color: #856404; font-size: 0.75em; padding: 4px 10px; border-radius: 10px; border: 1px solid #ffeeba; font-style: italic; margin: 5px 0; }
+        .system-msg { align-self: center; background: #fff3cd; color: #856404; font-size: 0.75em; padding: 5px 12px; border-radius: 12px; border: 1px solid #ffeeba; font-style: italic; margin: 8px 0; width: 90%; text-align: center; }
         
         .tab-buttons { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
         .tab-buttons button { width: auto; padding: 8px 20px; background: #eee; color: #555; }
@@ -68,9 +70,10 @@
             <span class="pfp-opt" onclick="setPfp('🔥')">🔥</span>
             <span class="pfp-opt" onclick="setPfp('👑')">👑</span>
             <span class="pfp-opt" onclick="setPfp('👻')">👻</span>
+            <span class="pfp-opt" onclick="setPfp('👽')">👽</span>
         </div>
         
-        <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50 Reward</button>
+        <button onclick="openTask()" style="background:#48bb78;">📺 Watch Video ($50)</button>
         <button onclick="claimTask()" style="background:#38a169;">Claim Reward</button>
         <div id="paycheckTimer" style="font-weight:bold; margin-top:15px; color:#764ba2;">...</div>
         <button id="claimPaycheckBtn" disabled>Claim $10 Paycheck</button>
@@ -80,9 +83,9 @@
         <div class="chat-wrapper">
             <div id="chatBox" class="chat-container"></div>
             <div style="padding:12px; border-top:1px solid #eee; background:#fff;">
-                <input id="chatUser" placeholder="To... (Blank for Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
+                <input id="chatUser" placeholder="To... (Leave blank for Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
                 <div style="display:flex; gap:5px;">
-                    <input id="chatMsg" placeholder="Message..." style="flex:1; margin:0; height:40px;">
+                    <input id="chatMsg" placeholder="Type a message..." style="flex:1; margin:0; height:40px;">
                     <button onclick="sendMsg()" style="width:65px; margin:0; height:40px;">Send</button>
                 </div>
             </div>
@@ -103,36 +106,52 @@ const db = firebase.database();
 
 let currentUser = "", loginMode = true, userPfp = "👤";
 
-function toggle() { loginMode = !loginMode; document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; }
+// UI FUNCTIONS
+function toggle() { 
+    loginMode = !loginMode; 
+    document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; 
+}
+
 function showTab(name) {
     document.getElementById('dashboardTab').classList.toggle('hidden', name !== 'dashboard');
     document.getElementById('chatTab').classList.toggle('hidden', name !== 'chat');
     document.getElementById('btnDash').classList.toggle('active', name === 'dashboard');
     document.getElementById('btnChat').classList.toggle('active', name === 'chat');
+    if(name === 'chat') {
+        const box = document.getElementById('chatBox');
+        box.scrollTop = box.scrollHeight;
+    }
 }
 
+// LOGIN LOGIC
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
-    if(!u || !p) return document.getElementById('msg').innerText = "Fill fields!";
+    if(!u || !p) return document.getElementById('msg').innerText = "Fill all fields!";
+
     db.ref('users/' + u).get().then(s => {
         if (loginMode) {
             if (s.exists() && String(s.val().password) === String(p)) {
                 localStorage.setItem('u', u); start(u);
-            } else { document.getElementById('msg').innerText = "Wrong Login!"; }
+            } else { document.getElementById('msg').innerText = "Wrong Login Details!"; }
         } else {
-            if (s.exists()) return document.getElementById('msg').innerText = "Taken!";
-            db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { location.reload(); });
+            if (s.exists()) return document.getElementById('msg').innerText = "Username exists!";
+            db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { 
+                alert("Account created! Log in now.");
+                location.reload(); 
+            });
         }
     });
 }
 
+// MAIN APP LOGIC
 function start(u) {
     currentUser = u;
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('uid').innerText = u;
     
+    // Listen for Balance & PFP
     db.ref('users/' + u).on('value', s => {
         const data = s.val() || {};
         document.getElementById('bal').innerText = data.balance || 0;
@@ -140,28 +159,46 @@ function start(u) {
         document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // IMPROVED CHAT LISTENER
+    // IRONCLAD CHAT LISTENER
     db.ref('messages').on('value', s => {
         const box = document.getElementById('chatBox');
         box.innerHTML = "";
-        const all = s.val() || {};
+        const allData = s.val() || {};
         
-        // Explicitly pull global and user messages
-        const globalSet = all.global || {};
-        const privateSet = all[currentUser] || {};
-        
-        const combined = { ...globalSet, ...privateSet };
-        
-        Object.keys(combined).sort().forEach(key => {
-            const m = combined[key];
+        let messagesArray = [];
+
+        // Pull Global Messages
+        if (allData.global) {
+            Object.entries(allData.global).forEach(([id, m]) => {
+                messagesArray.push({ ...m, id: id });
+            });
+        }
+
+        // Pull Private Messages for current user
+        if (allData[currentUser]) {
+            Object.entries(allData[currentUser]).forEach(([id, m]) => {
+                messagesArray.push({ ...m, id: id });
+            });
+        }
+
+        // Sort by Time
+        messagesArray.sort((a, b) => (a.time || 0) - (b.time || 0));
+
+        // Display
+        messagesArray.forEach(m => {
             if (!m.text) return;
             const div = document.createElement('div');
+            
             if (m.type === "system") {
                 div.className = "system-msg";
                 div.innerText = m.text;
             } else {
                 div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
-                div.innerHTML = `<div class="sender-info"><span>${m.pfp || '👤'}</span> ${m.from}</div><div>${m.text}</div>`;
+                const senderEmoji = m.pfp || "👤";
+                div.innerHTML = `
+                    <div class="sender-info"><span>${senderEmoji}</span> ${m.from}</div>
+                    <div>${m.text}</div>
+                `;
             }
             box.appendChild(div);
         });
@@ -172,24 +209,37 @@ function start(u) {
 }
 
 function setPfp(emoji) {
-    if(!currentUser) return;
+    if(!currentUser || emoji === userPfp) return;
     userPfp = emoji;
     db.ref('users/' + currentUser + '/pfp').set(emoji);
-    db.ref('messages/global').push({ type: "system", text: `${emoji} ${currentUser} updated their look!`, time: Date.now() });
+    db.ref('messages/global').push({
+        type: "system",
+        text: `${emoji} ${currentUser} just updated their look!`,
+        time: Date.now()
+    });
 }
 
 function sendMsg() {
-    let toInput = document.getElementById('chatUser').value.trim().toLowerCase();
-    let to = toInput === "" ? "global" : toInput;
+    let toField = document.getElementById('chatUser').value.trim().toLowerCase();
+    let to = toField === "" ? "global" : toField;
     let text = document.getElementById('chatMsg').value.trim();
     if (!text) return;
 
-    const msgObj = { from: currentUser, pfp: userPfp, text: text, time: Date.now() };
+    const msgObj = { 
+        from: currentUser, 
+        pfp: userPfp, 
+        text: text, 
+        time: Date.now() 
+    };
 
     db.ref('messages/' + to).push(msgObj).then(() => {
+        // Record private messages in my own folder too
         if (to !== "global") {
             db.ref('messages/' + currentUser).push({
-                from: currentUser, pfp: userPfp, text: `(To ${to}): ${text}`, time: Date.now()
+                from: currentUser, 
+                pfp: userPfp, 
+                text: `(To ${to}): ${text}`, 
+                time: Date.now()
             });
         }
     });
@@ -202,18 +252,21 @@ function startPaycheckTimer() {
     setInterval(async () => {
         if(!currentUser) return;
         let snap = await db.ref('paychecks/' + currentUser).get();
-        let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
+        let last = snap.val()?.last || 0;
+        let diff = (last + 43200000) - Date.now();
+        
         if (diff <= 0) { 
-            timerEl.innerText = "PAYCHECK READY!"; 
+            timerEl.innerText = "STATUS: PAYCHECK READY!"; 
             timerEl.style.color = "green"; 
             btn.disabled = false; 
         } else { 
             btn.disabled = true;
             timerEl.style.color = "#764ba2";
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
-            timerEl.innerText = `${h}h ${m}m ${s}s`;
+            timerEl.innerText = `NEXT PAYROLL: ${h}h ${m}m ${s}s`;
         }
     }, 1000);
+
     btn.onclick = () => {
         db.ref('users/' + currentUser + '/balance').transaction(b => (b||0)+10);
         db.ref('paychecks/' + currentUser).set({ last: Date.now() });
@@ -222,15 +275,17 @@ function startPaycheckTimer() {
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Already claimed!");
+        if (s.exists()) return alert("Task already completed!");
         db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
         db.ref('tasks/' + currentUser).set(true);
-        alert("Got $50!");
+        alert("Success! +$50");
     });
 }
+
 function openTask() { window.open("https://www.youtube.com/@mythvfact", "_blank"); }
 function logout() { localStorage.removeItem('u'); location.reload(); }
 
+// Check session
 let savedU = localStorage.getItem('u'); 
 if (savedU) start(savedU);
 </script>
