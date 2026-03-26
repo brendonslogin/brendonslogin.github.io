@@ -7,29 +7,28 @@
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
-        input, button { margin:8px 0; padding:12px; width:95%; border-radius:12px; border:1px solid #ddd; box-sizing: border-box; outline: none; font-size: 1rem; }
+        input, button { margin:8px 0; padding:12px; width:95%; border-radius:12px; border:1px solid #ddd; box-sizing: border-box; outline: none; }
         button { background:#667eea; color:white; font-weight:bold; cursor:pointer; border:none; transition: 0.2s; }
         button:hover { background:#5a67d8; transform: translateY(-1px); }
-        button:disabled { background:#ccc; cursor:not-allowed; }
         .hidden { display:none; }
         
-        /* Integrated Chat UI */
+        /* PFP Styles */
+        .pfp-display { font-size: 50px; margin: 10px 0; background: #f0f4ff; width: 80px; height: 80px; line-height: 80px; border-radius: 50%; display: inline-block; border: 3px solid #667eea; }
+        .pfp-option { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; transition: 0.2s; border: 1px solid transparent; display: inline-block; }
+        .pfp-option:hover { background: #eee; border-color: #667eea; }
+
+        /* Chat Styles */
         .chat-wrapper { border: 1px solid #eee; border-radius: 16px; overflow: hidden; background: #fff; margin-top: 15px; }
-        .chat-header { background: #667eea; color: white; padding: 12px; font-weight: bold; text-align: left; font-size: 0.9em; }
         .chat-container { height: 280px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; }
-        .msg { padding: 8px 12px; margin: 4px 0; border-radius: 12px; max-width: 85%; font-size: 0.9em; position: relative; word-wrap: break-word; }
-        .sender-label { display: block; font-size: 0.7em; font-weight: bold; margin-bottom: 2px; opacity: 0.7; color: #555; }
+        .msg { padding: 8px 12px; margin: 4px 0; border-radius: 12px; max-width: 85%; font-size: 0.9em; position: relative; }
+        .sender-info { font-size: 0.7em; font-weight: bold; margin-bottom: 2px; color: #555; display: flex; align-items: center; gap: 5px; }
         .me { background: #667eea; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
         .other { background: #e9e9eb; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
         
-        /* Dashboard Elements */
+        /* Layout */
         .tab-buttons { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
         .tab-buttons button { width: auto; padding: 8px 20px; background: #eee; color: #555; }
         .tab-buttons button.active { background: #667eea; color: white; }
-        #leaderboard { background: #fff3cd; color: #856404; padding: 12px; border-radius: 12px; text-align: left; font-size: 0.85em; margin-top: 10px; border: 1px solid #ffeeba; }
-        #transactions { max-height: 100px; overflow-y: auto; font-size: 0.8em; text-align: left; background: #f4f4f4; border-radius: 8px; padding: 8px; margin-top: 10px; color: #444; }
-        ul { padding: 0; margin: 0; }
-        li { list-style: none; background: #f8f9fa; margin: 5px 0; padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid #eee; font-size: 0.9em; color: #333; }
     </style>
 </head>
 <body>
@@ -39,56 +38,50 @@
     <input id="user" placeholder="Username">
     <input id="pass" type="password" placeholder="Password">
     <button onclick="go()">Enter Bank</button>
-    <button onclick="toggle()" style="background:none; color:#667eea; font-size: 0.9em;">Switch to Create Account</button>
-    <p id="msg" style="color:#e53e3e; font-size: 0.85em; font-weight: bold;"></p>
+    <button onclick="toggle()" style="background:none; color:#667eea;">Create Account</button>
+    <p id="msg" style="color:red; font-weight:bold;"></p>
 </div>
 
 <div class="box hidden" id="app">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-        <span style="font-size:0.8em; color:#666;">Account: <b id="uid" style="color:#667eea;"></b></span>
-        <button onclick="logout()" style="width:auto; padding:5px 12px; background:#ff4d4d; font-size:0.75em; margin:0;">Logout</button>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div id="myPfp" class="pfp-display" style="width:40px; height:40px; line-height:40px; font-size:20px;">👤</div>
+        <button onclick="logout()" style="width:auto; padding:5px 10px; background:#ff4d4d; font-size:0.7em;">Logout</button>
     </div>
 
-    <h1 style="margin:5px 0; color:#333;">$<span id="bal">0</span></h1>
-    <p style="color: #888; font-size: 0.8em; margin-bottom: 15px;">Available Balance</p>
+    <h1 style="margin:5px 0;">$<span id="bal">0</span></h1>
     
-    <div style="background:#f0f4ff; padding:15px; border-radius:15px; border: 1px solid #dce4ff;">
-        <div id="paycheckTimer" style="font-weight:bold; font-size: 1.1em; color: #764ba2;">Calculating...</div>
-        <button id="claimPaycheckBtn" disabled style="margin-top:10px;">Claim $10 Paycheck</button>
-    </div>
-
     <div class="tab-buttons">
         <button id="btnDash" class="active" onclick="showTab('dashboard')">Home</button>
-        <button id="btnChat" onclick="showTab('chat')">Messenger</button>
+        <button id="btnChat" onclick="showTab('chat')">Chat</button>
     </div>
 
     <div id="dashboardTab">
-        <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50 Reward</button>
-        <button onclick="claimTask()" style="background:#38a169;">Claim Reward</button>
-        
-        <h4 style="margin:20px 0 5px; text-align: left;">🏆 Top Wealthy Users</h4>
-        <div id="leaderboard">Loading rankings...</div>
-
-        <h4 style="margin:20px 0 5px; text-align: left;">Friends List</h4>
-        <div style="display:flex; gap:5px;">
-            <input id="friend" placeholder="Add friend by name..." style="margin:0; font-size: 0.8em;">
-            <button onclick="addFriend()" style="width:auto; margin:0; padding: 0 15px;">Add</button>
+        <div style="background:#f9f9fb; padding:10px; border-radius:15px; margin-bottom:15px;">
+            <p style="margin:0; font-size:0.8em; color:#666;">Choose your Permanent PFP:</p>
+            <div id="pfpPicker">
+                <span class="pfp-option" onclick="setPfp('💰')">💰</span>
+                <span class="pfp-option" onclick="setPfp('🦁')">🦁</span>
+                <span class="pfp-option" onclick="setPfp('💎')">💎</span>
+                <span class="pfp-option" onclick="setPfp('🔥')">🔥</span>
+                <span class="pfp-option" onclick="setPfp('👑')">👑</span>
+                <span class="pfp-option" onclick="setPfp('👻')">👻</span>
+            </div>
         </div>
-        <ul id="friends"></ul>
-
-        <h4 style="margin:20px 0 5px; text-align: left;">Recent Transactions</h4>
-        <div id="transactions">No transactions yet.</div>
+        
+        <button onclick="openTask()" style="background:#48bb78;">📺 Earn $50</button>
+        <button onclick="claimTask()" style="background:#38a169;">Claim Reward</button>
+        <div id="paycheckTimer" style="font-weight:bold; margin-top:10px; color:#764ba2;">...</div>
+        <button id="claimPaycheckBtn" disabled>Claim $10 Paycheck</button>
     </div>
 
     <div id="chatTab" class="hidden">
         <div class="chat-wrapper">
-            <div class="chat-header">Direct Messages (Blank 'To' for Global)</div>
             <div id="chatBox" class="chat-container"></div>
-            <div style="padding:12px; border-top:1px solid #eee; background: #fafafa;">
-                <input id="chatUser" placeholder="Send to... (e.g. admin)" style="height:30px; font-size:0.8em; margin-bottom: 5px;">
+            <div style="padding:10px; border-top:1px solid #eee;">
+                <input id="chatUser" placeholder="Send to... (Blank for Global)" style="height:30px; font-size:0.8em;">
                 <div style="display:flex; gap:5px;">
-                    <input id="chatMsg" placeholder="Type message or /give 10" style="flex:1; margin:0; height: 40px;">
-                    <button onclick="sendMsg()" style="width:65px; margin:0; height: 40px;">Send</button>
+                    <input id="chatMsg" placeholder="Message..." style="flex:1; margin:0;">
+                    <button onclick="sendMsg()" style="width:60px; margin:0;">Send</button>
                 </div>
             </div>
         </div>
@@ -99,7 +92,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
-// CONFIG
 const config = {
     apiKey: "AIzaSyCL98jL_NJHCsaLN8q4SUD_N26mUyqYnjI",
     databaseURL: "https://brendonslogin-default-rtdb.firebaseio.com"
@@ -107,15 +99,9 @@ const config = {
 firebase.initializeApp(config);
 const db = firebase.database();
 
-let currentUser = "", loginMode = true;
+let currentUser = "", loginMode = true, userPfp = "👤";
 
-// UI HELPERS
-function toggle() { 
-    loginMode = !loginMode; 
-    document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; 
-    document.getElementById('msg').innerText = "";
-}
-
+function toggle() { loginMode = !loginMode; document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; }
 function showTab(name) {
     document.getElementById('dashboardTab').classList.toggle('hidden', name !== 'dashboard');
     document.getElementById('chatTab').classList.toggle('hidden', name !== 'chat');
@@ -123,187 +109,101 @@ function showTab(name) {
     document.getElementById('btnChat').classList.toggle('active', name === 'chat');
 }
 
-// LOGIN & REGISTER LOGIC
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
-    let msgBox = document.getElementById('msg');
-    if (!u || !p) return msgBox.innerText = "Please fill all fields.";
-
     db.ref('users/' + u).get().then(s => {
         if (loginMode) {
-            if (s.exists()) {
-                const dbPass = String(s.val().password);
-                if (dbPass === String(p)) {
-                    localStorage.setItem('u', u);
-                    start(u);
-                } else {
-                    msgBox.innerText = "Incorrect Password!";
-                }
-            } else {
-                msgBox.innerText = "User not found. Check spelling or Register.";
-            }
+            if (s.exists() && String(s.val().password) === String(p)) {
+                localStorage.setItem('u', u); start(u);
+            } else { alert("Wrong Login!"); }
         } else {
-            if (s.exists()) return msgBox.innerText = "Username already taken!";
-            db.ref('users/' + u).set({ 
-                password: String(p), 
-                balance: 10,
-                friends: [] 
-            }).then(() => {
-                alert("Account Created! You can now log in.");
-                location.reload();
-            });
+            if (s.exists()) return alert("Taken!");
+            db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { location.reload(); });
         }
-    }).catch(e => {
-        msgBox.innerText = "Database Error: Check Rules!";
-        console.error(e);
     });
 }
 
-// APP INITIALIZATION
 function start(u) {
     currentUser = u;
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
-    document.getElementById('uid').innerText = u;
-
-    // Real-time Balance
-    db.ref('users/' + u + '/balance').on('value', s => { document.getElementById('bal').innerText = s.val() || 0; });
-
-    // Friends List
-    db.ref('users/' + u + '/friends').on('value', s => {
-        const list = document.getElementById('friends'); list.innerHTML = "";
-        (s.val() || []).forEach(f => {
-            let li = document.createElement('li'); li.innerText = "👤 " + f;
-            li.onclick = () => { document.getElementById('chatUser').value = f; showTab('chat'); };
-            list.appendChild(li);
-        });
+    
+    // Load Permanent PFP & Balance
+    db.ref('users/' + u).on('value', s => {
+        const data = s.val();
+        document.getElementById('bal').innerText = data.balance || 0;
+        userPfp = data.pfp || "👤";
+        document.getElementById('myPfp').innerText = userPfp;
     });
 
-    // Integrated Chat (Global + Private)
+    // Chat with PFPs
     db.ref('messages').on('value', s => {
         const box = document.getElementById('chatBox'); box.innerHTML = "";
         const all = s.val() || {};
         const combined = { ...(all['global'] || {}), ...(all[currentUser] || {}) };
         
-        // Sort by timestamp
         Object.keys(combined).sort().forEach(key => {
             const m = combined[key];
             const div = document.createElement('div');
             div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
-            div.innerHTML = `<span class="sender-label">${m.from}</span>${m.text}`;
+            // Use the PFP sent with the message
+            div.innerHTML = `<span class="sender-info"><span>${m.pfp || '👤'}</span> ${m.from}</span>${m.text}`;
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
     });
 
-    // Live Leaderboard
-    db.ref('users').orderByChild('balance').limitToLast(5).on('value', s => {
-        const board = document.getElementById('leaderboard'); board.innerHTML = "";
-        let users = []; s.forEach(c => { users.push({ n: c.key, b: c.val().balance || 0 }); });
-        users.reverse().forEach((user, i) => {
-            board.innerHTML += `<div><b>#${i+1} ${user.n}</b>: $${user.b}</div>`;
-        });
-    });
-
-    // Transaction History
-    db.ref('transactions/' + u).on('value', s => {
-        const tBox = document.getElementById('transactions'); tBox.innerHTML = "";
-        Object.values(s.val() || {}).reverse().forEach(t => {
-            tBox.innerHTML += `<div style="padding:2px 0; border-bottom:1px solid #eee;">• ${t}</div>`;
-        });
-    });
-
     startPaycheckTimer();
 }
 
-// CHAT & COMMANDS
+function setPfp(emoji) {
+    userPfp = emoji;
+    db.ref('users/' + currentUser + '/pfp').set(emoji);
+    alert("Profile Picture Updated!");
+}
+
 function sendMsg() {
-    let to = document.getElementById('chatUser').value.trim().toLowerCase();
+    let to = document.getElementById('chatUser').value.trim().toLowerCase() || "global";
     let text = document.getElementById('chatMsg').value.trim();
     if (!text) return;
-    if (!to) to = "global";
 
-    if (text.startsWith("/give")) {
-        let amt = parseInt(text.split(" ")[1]);
-        if (!amt || amt <= 0 || to === "global") return alert("Enter a valid user and amount!");
-        
-        db.ref('users/' + currentUser + '/balance').transaction(b => {
-            if ((b || 0) < amt) return; return b - amt;
-        }, (err, comm) => {
-            if (!comm) return alert("Insufficient Funds!");
-            db.ref('users/' + to + '/balance').transaction(b => (b || 0) + amt);
-            db.ref('transactions/' + currentUser).push(`Sent $${amt} to ${to}`);
-            db.ref('transactions/' + to).push(`Received $${amt} from ${currentUser}`);
-            alert("Money Transferred!");
-        });
-    } else {
-        const msgObj = { from: currentUser, text: text, time: Date.now() };
-        db.ref('messages/' + to).push(msgObj);
-        if (to !== "global") {
-            db.ref('messages/' + currentUser).push({ from: currentUser, text: `(To ${to}): ${text}`, time: Date.now() });
-        }
-    }
+    const msgObj = { from: currentUser, pfp: userPfp, text: text, time: Date.now() };
+    db.ref('messages/' + to).push(msgObj);
+    if (to !== "global") db.ref('messages/' + currentUser).push(msgObj);
     document.getElementById('chatMsg').value = "";
 }
 
-// 12-HOUR PAYCHECK LOGIC
+// Timer & Tasks (Keep existing logic)
 function startPaycheckTimer() {
     const btn = document.getElementById('claimPaycheckBtn');
     const timerEl = document.getElementById('paycheckTimer');
-    
-    async function check() {
+    setInterval(async () => {
         let snap = await db.ref('paychecks/' + currentUser).get();
-        let lastClaim = snap.val()?.last || 0;
-        let diff = (lastClaim + 43200000) - Date.now();
-        
-        if (diff <= 0) {
-            timerEl.innerText = "Status: PAYCHECK READY!"; 
-            timerEl.style.color = "green"; 
-            btn.disabled = false;
-        } else {
-            btn.disabled = true; 
-            timerEl.style.color = "#764ba2";
+        let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
+        if (diff <= 0) { timerEl.innerText = "READY!"; btn.disabled = false; }
+        else { 
+            btn.disabled = true;
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
-            timerEl.innerText = `Next Paycheck: ${h}h ${m}m ${s}s`;
+            timerEl.innerText = `${h}h ${m}m ${s}s`;
         }
-    }
+    }, 1000);
     btn.onclick = () => {
         db.ref('users/' + currentUser + '/balance').transaction(b => (b||0)+10);
         db.ref('paychecks/' + currentUser).set({ last: Date.now() });
-        db.ref('transactions/' + currentUser).push("Claimed Hourly Paycheck (+$10)");
-        check();
     };
-    setInterval(check, 1000); check();
-}
-
-function addFriend() {
-    let f = document.getElementById('friend').value.trim().toLowerCase();
-    if (!f || f === currentUser) return;
-    db.ref('users/' + f).get().then(s => {
-        if (!s.exists()) return alert("User not found!");
-        db.ref('users/' + currentUser + '/friends').get().then(r => {
-            let a = r.val() || []; if(!a.includes(f)) { a.push(f); db.ref('users/'+currentUser+'/friends').set(a); }
-            document.getElementById('friend').value = "";
-        });
-    });
 }
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Task already completed!");
-        db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50).then(() => {
-            db.ref('tasks/' + currentUser).set(true);
-            db.ref('transactions/' + currentUser).push("Earned $50 One-Time Reward");
-            alert("Reward Claimed!");
-        });
+        if (s.exists()) return alert("Done!");
+        db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
+        db.ref('tasks/' + currentUser).set(true);
     });
 }
-
 function openTask() { window.open("https://www.youtube.com/@mythvfact", "_blank"); }
 function logout() { localStorage.removeItem('u'); location.reload(); }
 
-// Auto-login if session exists
 let savedU = localStorage.getItem('u'); if (savedU) start(savedU);
 </script>
 </body>
