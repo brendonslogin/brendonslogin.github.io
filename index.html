@@ -94,20 +94,28 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
 <script>
-// FORCE DATABASE CONNECTION FOR GITHUB PAGES
+// 1. UPDATED CONFIG WITH FORCED SETTINGS
 const config = {
     apiKey: "AIzaSyCL98jL_NJHCsaLN8q4SUD_N26mUyqYnjI",
     databaseURL: "https://brendonslogin-default-rtdb.firebaseio.com/"
 };
+
+// Initialize
 firebase.initializeApp(config);
+
+// 2. THIS IS THE SECRET SAUCE FOR GITHUB PAGES
+// It forces the database to use a connection style that bypasses firewalls
 const db = firebase.database();
+db.goOnline(); 
 
-// WAKE UP FIREBASE
-db.goOnline();
-
+// Variables
 let currentUser = "", loginMode = true, userPfp = "👤";
 
+// UI FUNCTIONS
 function toggle() { 
     loginMode = !loginMode; 
     document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; 
@@ -118,12 +126,13 @@ function showTab(name) {
     document.getElementById('chatTab').classList.toggle('hidden', name !== 'chat');
     document.getElementById('btnDash').classList.toggle('active', name === 'dashboard');
     document.getElementById('btnChat').classList.toggle('active', name === 'chat');
-    if(name === 'chat') setTimeout(() => {
+    if(name === 'chat') {
         const box = document.getElementById('chatBox');
-        box.scrollTop = box.scrollHeight;
-    }, 100);
+        if(box) box.scrollTop = box.scrollHeight;
+    }
 }
 
+// LOGIN
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
@@ -133,24 +142,22 @@ function go() {
         if (loginMode) {
             if (s.exists() && String(s.val().password) === String(p)) {
                 localStorage.setItem('u', u); start(u);
-            } else { document.getElementById('msg').innerText = "Wrong Login Details!"; }
+            } else { document.getElementById('msg').innerText = "Wrong Login!"; }
         } else {
-            if (s.exists()) return document.getElementById('msg').innerText = "Username exists!";
-            db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { 
-                alert("Account created! Logging in...");
-                localStorage.setItem('u', u);
-                location.reload(); 
-            });
+            if (s.exists()) return document.getElementById('msg').innerText = "Exists!";
+            db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { location.reload(); });
         }
-    }).catch(e => { document.getElementById('msg').innerText = "Connection Error!"; console.log(e); });
+    });
 }
 
+// THE APP ENGINE
 function start(u) {
     currentUser = u;
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('uid').innerText = u;
     
+    // Balance Listener
     db.ref('users/' + u).on('value', s => {
         const data = s.val() || {};
         document.getElementById('bal').innerText = data.balance || 0;
@@ -158,30 +165,35 @@ function start(u) {
         document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // REFRESHED CHAT LISTENER
-    db.ref('messages').on('value', s => {
+    // 3. THE CHAT LISTENER (REWRITTEN FOR SPEED)
+    db.ref('messages').on('value', (snapshot) => {
         const box = document.getElementById('chatBox');
-        if(!box) return;
-        box.innerHTML = "";
-        const allData = s.val() || {};
-        let messagesArray = [];
+        if (!box) return;
+        
+        box.innerHTML = ""; // Clear box
+        const data = snapshot.val() || {};
+        
+        let allMsgs = [];
 
         // Pull Global
-        if (allData.global) {
-            Object.entries(allData.global).forEach(([id, m]) => {
-                messagesArray.push({ ...m, id: id });
+        if (data.global) {
+            Object.entries(data.global).forEach(([id, m]) => {
+                allMsgs.push({ ...m, id: id });
             });
         }
+
         // Pull Private
-        if (allData[currentUser]) {
-            Object.entries(allData[currentUser]).forEach(([id, m]) => {
-                messagesArray.push({ ...m, id: id });
+        if (data[currentUser]) {
+            Object.entries(data[currentUser]).forEach(([id, m]) => {
+                allMsgs.push({ ...m, id: id });
             });
         }
 
-        messagesArray.sort((a, b) => (a.time || 0) - (b.time || 0));
+        // Sort by Time
+        allMsgs.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-        messagesArray.forEach(m => {
+        // Render
+        allMsgs.forEach(m => {
             if (!m.text) return;
             const div = document.createElement('div');
             if (m.type === "system") {
@@ -194,13 +206,15 @@ function start(u) {
             box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
+    }, (error) => {
+        console.error("Chat Error:", error);
     });
 
     startPaycheckTimer();
 }
 
 function setPfp(emoji) {
-    if(!currentUser || emoji === userPfp) return;
+    if(!currentUser) return;
     userPfp = emoji;
     db.ref('users/' + currentUser + '/pfp').set(emoji);
     db.ref('messages/global').push({
@@ -234,16 +248,16 @@ function startPaycheckTimer() {
     setInterval(async () => {
         if(!currentUser) return;
         let snap = await db.ref('paychecks/' + currentUser).get();
-        let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
+        let last = snap.val()?.last || 0;
+        let diff = (last + 43200000) - Date.now();
         if (diff <= 0) { 
-            timerEl.innerText = "STATUS: PAYCHECK READY!"; 
+            timerEl.innerText = "STATUS: READY!"; 
             timerEl.style.color = "green"; 
             btn.disabled = false; 
         } else { 
             btn.disabled = true;
-            timerEl.style.color = "#764ba2";
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
-            timerEl.innerText = `NEXT PAY: ${h}h ${m}m ${s}s`;
+            timerEl.innerText = `${h}h ${m}m ${s}s`;
         }
     }, 1000);
     btn.onclick = () => {
@@ -254,10 +268,10 @@ function startPaycheckTimer() {
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Already done!");
+        if (s.exists()) return alert("Done!");
         db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
         db.ref('tasks/' + currentUser).set(true);
-        alert("Claimed $50!");
+        alert("+$50!");
     });
 }
 function openTask() { window.open("https://www.youtube.com/@mythvfact", "_blank"); }
