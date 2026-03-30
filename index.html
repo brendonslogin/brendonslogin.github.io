@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Bank App v8 - Debug Mode</title>
+    <title>Pro Bank App v9</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
@@ -17,7 +17,6 @@
         .user-pill { background: #f0f4ff; padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #444; border: 1px solid #dce4ff; }
         .pfp-picker { background: #f9f9fb; padding: 10px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #eee; }
         .pfp-opt { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; display: inline-block; transition: 0.2s; }
-        .pfp-opt:hover { background: #e2e8f0; transform: scale(1.2); }
 
         .chat-wrapper { border: 1px solid #eee; border-radius: 16px; overflow: hidden; background: #fff; margin-top: 15px; }
         .chat-container { height: 320px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; scroll-behavior: smooth; }
@@ -81,7 +80,7 @@
         <div class="chat-wrapper">
             <div id="chatBox" class="chat-container"></div>
             <div style="padding:12px; border-top:1px solid #eee; background:#fff;">
-                <input id="chatUser" placeholder="To... (Empty = Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
+                <input id="chatUser" placeholder="To... (Leave blank for Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
                 <div style="display:flex; gap:5px;">
                     <input id="chatMsg" placeholder="Type a message..." style="flex:1; margin:0; height:40px;">
                     <button onclick="sendMsg()" style="width:65px; margin:0; height:40px;">Send</button>
@@ -99,10 +98,9 @@ const config = {
     apiKey: "AIzaSyCL98jL_NJHCsaLN8q4SUD_N26mUyqYnjI",
     databaseURL: "https://brendonslogin-default-rtdb.firebaseio.com/"
 };
-
 firebase.initializeApp(config);
 const db = firebase.database();
-db.goOnline(); // Force wake up
+db.goOnline();
 
 let currentUser = "", loginMode = true, userPfp = "👤";
 
@@ -116,30 +114,26 @@ function showTab(name) {
     document.getElementById('chatTab').classList.toggle('hidden', name !== 'chat');
     document.getElementById('btnDash').classList.toggle('active', name === 'dashboard');
     document.getElementById('btnChat').classList.toggle('active', name === 'chat');
-    if(name === 'chat') {
-        refreshChat();
-    }
+    if(name === 'chat') refreshChat();
 }
 
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
-    if(!u || !p) return document.getElementById('msg').innerText = "Fill fields!";
+    if(!u || !p) return document.getElementById('msg').innerText = "Fill all fields!";
 
     db.ref('users/' + u).once('value').then(s => {
         if (loginMode) {
             if (s.exists() && String(s.val().password) === String(p)) {
                 localStorage.setItem('u', u); start(u);
-            } else { document.getElementById('msg').innerText = "Wrong Login!"; }
+            } else { document.getElementById('msg').innerText = "Wrong Details!"; }
         } else {
-            if (s.exists()) return document.getElementById('msg').innerText = "Exists!";
+            if (s.exists()) return document.getElementById('msg').innerText = "Username taken!";
             db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { 
-                alert("Account created! Logging in...");
-                localStorage.setItem('u', u);
-                location.reload(); 
+                alert("Account created!"); localStorage.setItem('u', u); location.reload(); 
             });
         }
-    }).catch(err => alert("DB Error: " + err.message));
+    });
 }
 
 function start(u) {
@@ -155,36 +149,27 @@ function start(u) {
         document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // Refresh chat every 5 seconds
-    setInterval(refreshChat, 5000);
+    setInterval(refreshChat, 4000);
     refreshChat();
     startPaycheckTimer();
 }
 
 function refreshChat() {
-    db.ref('messages').once('value').then(snapshot => {
+    db.ref('messages').once('value').then(snap => {
         const box = document.getElementById('chatBox');
-        if (!box) return;
-        
+        if(!box) return;
         box.innerHTML = "";
-        const data = snapshot.val() || {};
-        let allMsgs = [];
+        const data = snap.val() || {};
+        let msgs = [];
 
-        if (data.global) {
-            Object.entries(data.global).forEach(([id, m]) => { allMsgs.push({ ...m, id: id }); });
-        }
-        if (data[currentUser]) {
-            Object.entries(data[currentUser]).forEach(([id, m]) => { allMsgs.push({ ...m, id: id }); });
-        }
+        if (data.global) Object.entries(data.global).forEach(([id, m]) => msgs.push({...m, id}));
+        if (data[currentUser]) Object.entries(data[currentUser]).forEach(([id, m]) => msgs.push({...m, id}));
 
-        allMsgs.sort((a, b) => (a.time || 0) - (b.time || 0));
-
-        allMsgs.forEach(m => {
-            if (!m.text) return;
+        msgs.sort((a, b) => (a.time || 0) - (b.time || 0));
+        msgs.forEach(m => {
             const div = document.createElement('div');
             if (m.type === "system") {
-                div.className = "system-msg";
-                div.innerText = m.text;
+                div.className = "system-msg"; div.innerText = m.text;
             } else {
                 div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
                 div.innerHTML = `<div class="sender-info"><span>${m.pfp || '👤'}</span> ${m.from}</div><div>${m.text}</div>`;
@@ -204,7 +189,7 @@ function sendMsg() {
     const msgObj = { from: currentUser, pfp: userPfp, text: text, time: Date.now() };
 
     db.ref('messages/' + to).push(msgObj).then(() => {
-        alert("Success: Message sent to " + to + "!");
+        alert("Sent to " + to + "!");
         if (to !== "global") {
             db.ref('messages/' + currentUser).push({
                 from: currentUser, pfp: userPfp, text: `(To ${to}): ${text}`, time: Date.now()
@@ -212,21 +197,12 @@ function sendMsg() {
         }
         document.getElementById('chatMsg').value = "";
         refreshChat();
-    }).catch(err => {
-        alert("FAILED: " + err.message);
-    });
+    }).catch(e => alert("Permission Denied: Did you add 'global' to your rules?"));
 }
 
 function setPfp(emoji) {
-    if(!currentUser) return;
-    userPfp = emoji;
-    db.ref('users/' + currentUser + '/pfp').set(emoji).then(() => {
-        db.ref('messages/global').push({
-            type: "system",
-            text: `${emoji} ${currentUser} updated their look!`,
-            time: Date.now()
-        });
-    });
+    db.ref('users/' + currentUser + '/pfp').set(emoji);
+    db.ref('messages/global').push({ type: "system", text: `${emoji} ${currentUser} updated their look!`, time: Date.now() });
 }
 
 function startPaycheckTimer() {
@@ -235,10 +211,9 @@ function startPaycheckTimer() {
     setInterval(async () => {
         if(!currentUser) return;
         let snap = await db.ref('paychecks/' + currentUser).get();
-        let last = snap.val()?.last || 0;
-        let diff = (last + 43200000) - Date.now();
+        let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
         if (diff <= 0) { 
-            timerEl.innerText = "READY!"; timerEl.style.color = "green"; btn.disabled = false; 
+            timerEl.innerText = "PAYCHECK READY!"; timerEl.style.color = "green"; btn.disabled = false; 
         } else { 
             btn.disabled = true;
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
@@ -253,7 +228,7 @@ function startPaycheckTimer() {
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Done!");
+        if (s.exists()) return alert("Already done!");
         db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
         db.ref('tasks/' + currentUser).set(true);
         alert("+$50!");
