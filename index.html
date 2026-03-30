@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Bank App v6</title>
+    <title>Pro Bank App v7</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:white; text-align:center; margin:0; min-height: 100vh; padding: 15px; box-sizing: border-box; }
         .box { background:white; color:black; padding:20px; margin:10px auto; width:100%; max-width:480px; border-radius:20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
@@ -13,14 +13,12 @@
         button:disabled { background:#ccc; cursor:not-allowed; }
         .hidden { display:none; }
         
-        /* Header & PFP */
         .header-ui { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .user-pill { background: #f0f4ff; padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #444; border: 1px solid #dce4ff; }
         .pfp-picker { background: #f9f9fb; padding: 10px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #eee; }
         .pfp-opt { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 8px; display: inline-block; transition: 0.2s; }
         .pfp-opt:hover { background: #e2e8f0; transform: scale(1.2); }
 
-        /* Bulletproof Chat UI */
         .chat-wrapper { border: 1px solid #eee; border-radius: 16px; overflow: hidden; background: #fff; margin-top: 15px; }
         .chat-container { height: 320px; overflow-y: auto; text-align: left; padding: 15px; background: #f9f9fb; display: flex; flex-direction: column; scroll-behavior: smooth; }
         .msg { padding: 8px 12px; margin: 5px 0; border-radius: 12px; max-width: 80%; font-size: 0.9em; position: relative; line-height: 1.4; word-wrap: break-word; }
@@ -83,7 +81,7 @@
         <div class="chat-wrapper">
             <div id="chatBox" class="chat-container"></div>
             <div style="padding:12px; border-top:1px solid #eee; background:#fff;">
-                <input id="chatUser" placeholder="To... (Leave blank for Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
+                <input id="chatUser" placeholder="To... (Empty = Global)" style="height:30px; font-size:0.8em; margin-bottom:5px;">
                 <div style="display:flex; gap:5px;">
                     <input id="chatMsg" placeholder="Type a message..." style="flex:1; margin:0; height:40px;">
                     <button onclick="sendMsg()" style="width:65px; margin:0; height:40px;">Send</button>
@@ -97,16 +95,19 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
+// FORCE DATABASE CONNECTION FOR GITHUB PAGES
 const config = {
     apiKey: "AIzaSyCL98jL_NJHCsaLN8q4SUD_N26mUyqYnjI",
-    databaseURL: "https://brendonslogin-default-rtdb.firebaseio.com"
+    databaseURL: "https://brendonslogin-default-rtdb.firebaseio.com/"
 };
 firebase.initializeApp(config);
 const db = firebase.database();
 
+// WAKE UP FIREBASE
+db.goOnline();
+
 let currentUser = "", loginMode = true, userPfp = "👤";
 
-// UI FUNCTIONS
 function toggle() { 
     loginMode = !loginMode; 
     document.getElementById('title').innerText = loginMode ? "Pro Bank Login" : "Create Account"; 
@@ -117,19 +118,18 @@ function showTab(name) {
     document.getElementById('chatTab').classList.toggle('hidden', name !== 'chat');
     document.getElementById('btnDash').classList.toggle('active', name === 'dashboard');
     document.getElementById('btnChat').classList.toggle('active', name === 'chat');
-    if(name === 'chat') {
+    if(name === 'chat') setTimeout(() => {
         const box = document.getElementById('chatBox');
         box.scrollTop = box.scrollHeight;
-    }
+    }, 100);
 }
 
-// LOGIN LOGIC
 function go() {
     let u = document.getElementById('user').value.trim().toLowerCase();
     let p = document.getElementById('pass').value.trim();
     if(!u || !p) return document.getElementById('msg').innerText = "Fill all fields!";
 
-    db.ref('users/' + u).get().then(s => {
+    db.ref('users/' + u).once('value').then(s => {
         if (loginMode) {
             if (s.exists() && String(s.val().password) === String(p)) {
                 localStorage.setItem('u', u); start(u);
@@ -137,21 +137,20 @@ function go() {
         } else {
             if (s.exists()) return document.getElementById('msg').innerText = "Username exists!";
             db.ref('users/' + u).set({ password: String(p), balance: 10, pfp: "👤" }).then(() => { 
-                alert("Account created! Log in now.");
+                alert("Account created! Logging in...");
+                localStorage.setItem('u', u);
                 location.reload(); 
             });
         }
-    });
+    }).catch(e => { document.getElementById('msg').innerText = "Connection Error!"; console.log(e); });
 }
 
-// MAIN APP LOGIC
 function start(u) {
     currentUser = u;
     document.getElementById('login').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('uid').innerText = u;
     
-    // Listen for Balance & PFP
     db.ref('users/' + u).on('value', s => {
         const data = s.val() || {};
         document.getElementById('bal').innerText = data.balance || 0;
@@ -159,46 +158,38 @@ function start(u) {
         document.getElementById('myPfpDisplay').innerText = userPfp;
     });
 
-    // IRONCLAD CHAT LISTENER
+    // REFRESHED CHAT LISTENER
     db.ref('messages').on('value', s => {
         const box = document.getElementById('chatBox');
+        if(!box) return;
         box.innerHTML = "";
         const allData = s.val() || {};
-        
         let messagesArray = [];
 
-        // Pull Global Messages
+        // Pull Global
         if (allData.global) {
             Object.entries(allData.global).forEach(([id, m]) => {
                 messagesArray.push({ ...m, id: id });
             });
         }
-
-        // Pull Private Messages for current user
+        // Pull Private
         if (allData[currentUser]) {
             Object.entries(allData[currentUser]).forEach(([id, m]) => {
                 messagesArray.push({ ...m, id: id });
             });
         }
 
-        // Sort by Time
         messagesArray.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-        // Display
         messagesArray.forEach(m => {
             if (!m.text) return;
             const div = document.createElement('div');
-            
             if (m.type === "system") {
                 div.className = "system-msg";
                 div.innerText = m.text;
             } else {
                 div.className = `msg ${m.from === currentUser ? 'me' : 'other'}`;
-                const senderEmoji = m.pfp || "👤";
-                div.innerHTML = `
-                    <div class="sender-info"><span>${senderEmoji}</span> ${m.from}</div>
-                    <div>${m.text}</div>
-                `;
+                div.innerHTML = `<div class="sender-info"><span>${m.pfp || '👤'}</span> ${m.from}</div><div>${m.text}</div>`;
             }
             box.appendChild(div);
         });
@@ -214,7 +205,7 @@ function setPfp(emoji) {
     db.ref('users/' + currentUser + '/pfp').set(emoji);
     db.ref('messages/global').push({
         type: "system",
-        text: `${emoji} ${currentUser} just updated their look!`,
+        text: `${emoji} ${currentUser} updated their look!`,
         time: Date.now()
     });
 }
@@ -225,21 +216,12 @@ function sendMsg() {
     let text = document.getElementById('chatMsg').value.trim();
     if (!text) return;
 
-    const msgObj = { 
-        from: currentUser, 
-        pfp: userPfp, 
-        text: text, 
-        time: Date.now() 
-    };
+    const msgObj = { from: currentUser, pfp: userPfp, text: text, time: Date.now() };
 
     db.ref('messages/' + to).push(msgObj).then(() => {
-        // Record private messages in my own folder too
         if (to !== "global") {
             db.ref('messages/' + currentUser).push({
-                from: currentUser, 
-                pfp: userPfp, 
-                text: `(To ${to}): ${text}`, 
-                time: Date.now()
+                from: currentUser, pfp: userPfp, text: `(To ${to}): ${text}`, time: Date.now()
             });
         }
     });
@@ -252,9 +234,7 @@ function startPaycheckTimer() {
     setInterval(async () => {
         if(!currentUser) return;
         let snap = await db.ref('paychecks/' + currentUser).get();
-        let last = snap.val()?.last || 0;
-        let diff = (last + 43200000) - Date.now();
-        
+        let diff = ((snap.val()?.last || 0) + 43200000) - Date.now();
         if (diff <= 0) { 
             timerEl.innerText = "STATUS: PAYCHECK READY!"; 
             timerEl.style.color = "green"; 
@@ -263,10 +243,9 @@ function startPaycheckTimer() {
             btn.disabled = true;
             timerEl.style.color = "#764ba2";
             let h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
-            timerEl.innerText = `NEXT PAYROLL: ${h}h ${m}m ${s}s`;
+            timerEl.innerText = `NEXT PAY: ${h}h ${m}m ${s}s`;
         }
     }, 1000);
-
     btn.onclick = () => {
         db.ref('users/' + currentUser + '/balance').transaction(b => (b||0)+10);
         db.ref('paychecks/' + currentUser).set({ last: Date.now() });
@@ -275,17 +254,15 @@ function startPaycheckTimer() {
 
 function claimTask() {
     db.ref('tasks/' + currentUser).get().then(s => {
-        if (s.exists()) return alert("Task already completed!");
+        if (s.exists()) return alert("Already done!");
         db.ref('users/' + currentUser + '/balance').transaction(b => (b || 0) + 50);
         db.ref('tasks/' + currentUser).set(true);
-        alert("Success! +$50");
+        alert("Claimed $50!");
     });
 }
-
 function openTask() { window.open("https://www.youtube.com/@mythvfact", "_blank"); }
 function logout() { localStorage.removeItem('u'); location.reload(); }
 
-// Check session
 let savedU = localStorage.getItem('u'); 
 if (savedU) start(savedU);
 </script>
